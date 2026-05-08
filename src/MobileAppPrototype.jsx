@@ -1,12 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   Bell,
-  Check,
   CheckCircle2,
   ChevronRight,
   Compass,
-  Edit3,
+  Eye,
   Home,
   Lock,
   MessageCircle,
@@ -20,78 +19,20 @@ import {
   X,
 } from "lucide-react";
 import {
+  answerDrafts,
+  answersByVoice,
   colorClasses,
+  composerTags,
   helpRequest,
+  mobileFeedItems,
+  mobileMessages,
   reflectionStarters,
+  reflectionInspirations,
+  totalVoiceCount,
   visibilityOptions,
+  voiceCounts,
   voiceTypes,
 } from "./productData";
-
-const feedItems = [
-  {
-    id: "career-home",
-    title: helpRequest.content,
-    tags: helpRequest.tags,
-    replies: 23,
-    time: "2h",
-    privacy: "匿名 · 标签广场",
-  },
-  {
-    id: "sleep-leader",
-    title: "和领导吵架后睡不着，明天还要开会，我是不是太玻璃心了？",
-    tags: ["职场", "情绪"],
-    replies: 11,
-    time: "45m",
-    privacy: "匿名 · 好友圈",
-  },
-  {
-    id: "checkup",
-    title: "第一次产检需要准备什么？想听听不同人的实际经验。",
-    tags: ["生活", "成长"],
-    replies: 8,
-    time: "5h",
-    privacy: "实名 · 标签广场",
-  },
-];
-
-const answersByVoice = {
-  empathy: [
-    {
-      id: "e1",
-      author: "@匿名声音",
-      time: "12m",
-      text: voiceTypes[0].answer,
-    },
-    {
-      id: "e2",
-      author: "@也在摇摆",
-      time: "38m",
-      text: "这种问题最累的地方，是每个选项都有代价。先抱抱你，能写出来已经不是原地打转了。",
-    },
-  ],
-  advice: [
-    {
-      id: "a1",
-      author: "@小王",
-      time: "1h",
-      text: voiceTypes[1].answer,
-    },
-    {
-      id: "a2",
-      author: "@过来人",
-      time: "3h",
-      text: "可以先做两周的信息收集：北京内部转岗、老家面试、远程机会各列三项，再比较真实选项。",
-    },
-  ],
-  mirror: [
-    {
-      id: "m1",
-      author: "@匿名声音",
-      time: "2h",
-      text: voiceTypes[2].answer,
-    },
-  ],
-};
 
 const appTabs = [
   { id: "feed", label: "求助", icon: Home },
@@ -99,9 +40,21 @@ const appTabs = [
   { id: "profile", label: "我的", icon: UserRound },
 ];
 
-const composerTags = ["职场", "选择", "情绪", "关系", "生活", "成长"];
+const messageIconComponents = {
+  seen: Eye,
+  reflection: MessageCircle,
+};
 
 function AppChrome({ children, activeScreen, onTabChange }) {
+  const scrollContainerRef = useRef(null);
+  const activeTab = ["messages", "profile"].includes(activeScreen)
+    ? activeScreen
+    : "feed";
+
+  useEffect(() => {
+    scrollContainerRef.current?.scrollTo({ top: 0 });
+  }, [activeScreen]);
+
   return (
     <div className="relative flex h-screen w-full max-w-[430px] flex-col overflow-hidden bg-[#fbf7ef] shadow-soft sm:h-[min(828px,calc(100vh-116px))] sm:max-w-[387px] sm:rounded-[2rem] sm:border sm:border-stone-900/15">
       <div className="flex items-center justify-between px-6 pb-2 pt-4 text-xs font-semibold text-stone-800">
@@ -109,12 +62,14 @@ function AppChrome({ children, activeScreen, onTabChange }) {
         <span className="h-4 w-16 rounded-full bg-stone-900" aria-hidden="true" />
         <span>100%</span>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto pb-20">{children}</div>
+      <div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-y-auto pb-20">
+        {children}
+      </div>
       <nav className="absolute inset-x-0 bottom-0 border-t border-stone-200 bg-[#fbf7ef]/95 px-4 pb-4 pt-2 backdrop-blur">
         <div className="grid grid-cols-3 gap-2">
           {appTabs.map((tab) => {
             const Icon = tab.icon;
-            const selected = activeScreen === tab.id;
+            const selected = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
@@ -188,6 +143,119 @@ function VoiceMiniBars() {
   );
 }
 
+function VoiceDistributionBar({ selectedVoiceType, onSelect }) {
+  return (
+    <section className="rounded-lg border border-stone-200 bg-white p-3 shadow-sm">
+      <div className="flex h-2 overflow-hidden rounded-full bg-stone-100">
+        {voiceTypes.map((voice) => {
+          const colors = colorClasses[voice.colorName];
+          return (
+            <span
+              key={voice.id}
+              className={colors.bg}
+              style={{ flexGrow: voiceCounts[voice.id], flexBasis: 0 }}
+              aria-hidden="true"
+            />
+          );
+        })}
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        {voiceTypes.map((voice) => {
+          const colors = colorClasses[voice.colorName];
+          const isSelected = selectedVoiceType === voice.id;
+          return (
+            <button
+              key={voice.id}
+              type="button"
+              onClick={() => onSelect(voice.id)}
+              className={`rounded-lg border p-3 text-left transition ${
+                isSelected
+                  ? `${colors.soft} ${colors.border}`
+                  : "border-stone-200 bg-stone-50"
+              }`}
+              aria-pressed={isSelected}
+            >
+              <div className={`h-1.5 rounded-full ${colors.bg}`} />
+              <p
+                className={`mt-2 text-sm font-semibold ${
+                  isSelected ? colors.text : "text-stone-700"
+                }`}
+              >
+                {voice.label}
+              </p>
+              <p className="mt-1 text-[11px] text-stone-500">
+                {voiceCounts[voice.id]} 个声音
+              </p>
+            </button>
+          );
+        })}
+      </div>
+      <p className="mt-3 text-xs font-medium leading-5 text-stone-500">
+        按时间倒序展示 · 不按赞数 · 空桶也保留位置
+      </p>
+    </section>
+  );
+}
+
+function VoicePresenceNote({ answerCount, voiceLabel }) {
+  if (answerCount === 0) {
+    return (
+      <section className="rounded-lg border border-dashed border-stone-300 bg-white/70 p-5 text-center">
+        <Sparkles className="mx-auto h-6 w-6 text-clay" aria-hidden="true" />
+        <p className="mt-3 text-sm font-semibold text-ink">
+          等待更多{voiceLabel}的声音
+        </p>
+        <p className="mt-2 text-xs leading-5 text-stone-500">
+          这个视角同样重要，所以不会被隐藏，也不会被合并到其他桶。
+        </p>
+      </section>
+    );
+  }
+
+  if (answerCount === 1) {
+    return (
+      <p className="rounded-lg bg-white/70 px-4 py-3 text-xs font-semibold leading-5 text-stone-500">
+        这个立场的声音目前还少，但它依然拥有独立位置。
+      </p>
+    );
+  }
+
+  return null;
+}
+
+function AnswerCard({ answer, inspired, onToggleInspired }) {
+  return (
+    <article
+      className={`rounded-lg border bg-white p-4 shadow-sm ${
+        inspired ? "border-orangevoice/40" : "border-stone-200"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-ink">{answer.author}</p>
+          <p className="mt-1 text-xs text-stone-500">{answer.time}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => onToggleInspired(answer.id)}
+          className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+            inspired ? "bg-orangevoice text-white" : "bg-stone-100 text-stone-600"
+          }`}
+          aria-pressed={inspired}
+        >
+          对我有启发
+        </button>
+      </div>
+      <p className="mt-4 text-sm leading-7 text-stone-700">{answer.text}</p>
+      {inspired ? (
+        <p className="mt-3 rounded-lg bg-orangevoice/10 px-3 py-2 text-xs font-semibold text-clay">
+          仅你可见：这条声音被你标记了
+        </p>
+      ) : null}
+    </article>
+  );
+}
+
 function FeedScreen({ onOpenDetail, onOpenCreate }) {
   return (
     <>
@@ -232,7 +300,7 @@ function FeedScreen({ onOpenDetail, onOpenCreate }) {
         </section>
 
         <section className="space-y-3">
-          {feedItems.map((item) => (
+          {mobileFeedItems.map((item) => (
             <article
               key={item.id}
               className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm"
@@ -280,7 +348,7 @@ function FeedScreen({ onOpenDetail, onOpenCreate }) {
   );
 }
 
-function DetailScreen({ onBack, onOpenReflect }) {
+function DetailScreen({ onBack, onOpenAnswer, onOpenReflect }) {
   const [selectedVoiceType, setSelectedVoiceType] = useState("advice");
   const [inspiredAnswerIds, setInspiredAnswerIds] = useState(["a1"]);
   const [showGuide, setShowGuide] = useState(true);
@@ -317,6 +385,7 @@ function DetailScreen({ onBack, onOpenReflect }) {
         rightAction={
           <button
             type="button"
+            onClick={onOpenAnswer}
             className="rounded-full bg-white p-3 text-stone-700 shadow-sm"
             aria-label="写回答"
           >
@@ -365,88 +434,252 @@ function DetailScreen({ onBack, onOpenReflect }) {
           </section>
         ) : null}
 
-        <section className="rounded-lg border border-stone-200 bg-white p-3 shadow-sm">
-          <div className="grid grid-cols-3 gap-2">
-            {voiceTypes.map((voice) => {
-              const colors = colorClasses[voice.colorName];
-              const isSelected = selectedVoiceType === voice.id;
-              return (
-                <button
-                  key={voice.id}
-                  type="button"
-                  onClick={() => setSelectedVoiceType(voice.id)}
-                  className={`rounded-lg border p-3 text-left transition ${
-                    isSelected
-                      ? `${colors.soft} ${colors.border}`
-                      : "border-stone-200 bg-stone-50"
-                  }`}
-                  aria-pressed={isSelected}
-                >
-                  <div className={`h-1.5 rounded-full ${colors.bg}`} />
-                  <p
-                    className={`mt-2 text-sm font-semibold ${
-                      isSelected ? colors.text : "text-stone-700"
-                    }`}
-                  >
-                    {voice.label}
-                  </p>
-                  <p className="mt-1 text-[11px] text-stone-500">{voice.claim}</p>
-                </button>
-              );
-            })}
-          </div>
-          <p className={`mt-4 text-sm font-semibold ${selectedColors.text}`}>
-            {selectedVoice.label} · {selectedVoice.tone}
+        <VoiceDistributionBar
+          selectedVoiceType={selectedVoiceType}
+          onSelect={setSelectedVoiceType}
+        />
+
+        <p className={`rounded-lg bg-white px-4 py-3 text-sm font-semibold shadow-sm ${selectedColors.text}`}>
+          {selectedVoice.label} · {selectedVoice.tone}
+        </p>
+
+        <section className="space-y-3">
+          {answers.length > 0 ? answers.map((answer) => {
+            const inspired = inspiredAnswerIds.includes(answer.id);
+            return (
+              <AnswerCard
+                key={answer.id}
+                answer={answer}
+                inspired={inspired}
+                onToggleInspired={toggleInspired}
+              />
+            );
+          }) : null}
+          <VoicePresenceNote
+            answerCount={answers.length}
+            voiceLabel={selectedVoice.label}
+          />
+        </section>
+
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={onOpenAnswer}
+            className="flex items-center justify-center gap-2 rounded-full bg-white px-5 py-4 text-sm font-semibold text-ink shadow-sm"
+          >
+            写回答
+            <PenLine size={16} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={onOpenReflect}
+            className="flex items-center justify-center gap-2 rounded-full bg-ink px-5 py-4 text-sm font-semibold text-white"
+          >
+            写下复盘
+            <Send size={16} aria-hidden="true" />
+          </button>
+        </div>
+      </main>
+    </>
+  );
+}
+
+function AnswerComposeScreen({ onCancel, onPublish }) {
+  const [selectedVoiceType, setSelectedVoiceType] = useState("advice");
+  const [answerText, setAnswerText] = useState(answerDrafts.advice);
+  const selectedVoice = useMemo(
+    () => voiceTypes.find((voice) => voice.id === selectedVoiceType),
+    [selectedVoiceType],
+  );
+  const selectVoiceType = (voiceTypeId) => {
+    setSelectedVoiceType(voiceTypeId);
+    setAnswerText(answerDrafts[voiceTypeId]);
+  };
+
+  return (
+    <>
+      <AppTopBar
+        title="写回答"
+        subtitle="先选择你回应的方式"
+        leftAction={
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-full bg-white p-2 text-stone-700 shadow-sm"
+            aria-label="返回求助详情"
+          >
+            <ArrowLeft size={18} aria-hidden="true" />
+          </button>
+        }
+        rightAction={
+          <button
+            type="button"
+            onClick={onPublish}
+            className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white"
+          >
+            发布
+          </button>
+        }
+      />
+      <main className="space-y-4 px-5 py-5">
+        <section className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
+          <p className="text-xs font-semibold text-stone-500">正在回应</p>
+          <p className="mt-2 text-base font-semibold leading-7 text-ink">
+            {helpRequest.content}
           </p>
         </section>
 
-        <section className="space-y-3">
-          {answers.map((answer) => {
-            const inspired = inspiredAnswerIds.includes(answer.id);
-            return (
-              <article
-                key={answer.id}
-                className={`rounded-lg border bg-white p-4 shadow-sm ${
-                  inspired ? "border-orangevoice/40" : "border-stone-200"
-                }`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-ink">{answer.author}</p>
-                    <p className="mt-1 text-xs text-stone-500">{answer.time}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => toggleInspired(answer.id)}
-                    className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-                      inspired
-                        ? "bg-orangevoice text-white"
-                        : "bg-stone-100 text-stone-600"
-                    }`}
-                    aria-pressed={inspired}
-                  >
-                    对我有启发
-                  </button>
-                </div>
-                <p className="mt-4 text-sm leading-7 text-stone-700">
-                  {answer.text}
-                </p>
-                {inspired ? (
-                  <p className="mt-3 rounded-lg bg-orangevoice/10 px-3 py-2 text-xs font-semibold text-clay">
-                    仅你可见：这条声音被你标记了
-                  </p>
-                ) : null}
-              </article>
-            );
-          })}
+        <VoiceDistributionBar
+          selectedVoiceType={selectedVoiceType}
+          onSelect={selectVoiceType}
+        />
+
+        <section className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
+          <label className="text-sm font-semibold text-ink" htmlFor="answer-draft">
+            以「{selectedVoice.label}」回应
+          </label>
+          <p className="mt-2 text-xs leading-5 text-stone-500">
+            {selectedVoice.claim} · {selectedVoice.tone}
+          </p>
+          <textarea
+            id="answer-draft"
+            className="mt-4 min-h-40 w-full resize-none rounded-lg border border-stone-200 bg-[#fbf7ef] p-3 text-sm leading-7 text-ink outline-none focus:border-clay"
+            value={answerText}
+            onChange={(event) => setAnswerText(event.target.value)}
+          />
+          <p className="mt-3 rounded-lg bg-orangevoice/10 px-3 py-2 text-xs leading-5 text-clay">
+            发布后会进入对应声音桶，按时间展示，不参与公开热度排序。
+          </p>
         </section>
 
         <button
           type="button"
-          onClick={onOpenReflect}
+          onClick={onPublish}
           className="flex w-full items-center justify-center gap-2 rounded-full bg-ink px-5 py-4 text-sm font-semibold text-white"
         >
-          写下复盘
+          发布回答
+          <Send size={16} aria-hidden="true" />
+        </button>
+      </main>
+    </>
+  );
+}
+
+function ReflectionEditScreen({ onBack, onPublish }) {
+  const [reflectionStarter, setReflectionStarter] = useState("我打算");
+  const [reflectionText, setReflectionText] = useState(
+    "先在北京再撑一年，同时回老家面试两家公司。给自己一个真实的对比，而不是只靠想象做决定。",
+  );
+
+  return (
+    <>
+      <AppTopBar
+        title="写下复盘"
+        subtitle="不强求一定有答案"
+        leftAction={
+          <button
+            type="button"
+            onClick={onBack}
+            className="rounded-full bg-white p-2 text-stone-700 shadow-sm"
+            aria-label="返回求助详情"
+          >
+            <ArrowLeft size={18} aria-hidden="true" />
+          </button>
+        }
+        rightAction={
+          <button
+            type="button"
+            onClick={onPublish}
+            className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white"
+          >
+            发布
+          </button>
+        }
+      />
+      <main className="space-y-4 px-5 py-5">
+        <section className="rounded-lg bg-ink p-5 text-white">
+          <p className="text-sm font-semibold text-orangevoice">
+            {totalVoiceCount} 条回答 · 你勾选了 {reflectionInspirations.length} 条
+          </p>
+          <p className="mt-3 text-lg font-semibold leading-7">
+            写下你的感受，让 {totalVoiceCount} 个声音被看见。
+          </p>
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            {voiceTypes.map((voice) => {
+              const colors = colorClasses[voice.colorName];
+              return (
+                <div key={voice.id} className="rounded-lg bg-white/10 p-3">
+                  <div className={`h-1.5 rounded-full ${colors.bg}`} />
+                  <p className="mt-2 text-xs font-semibold text-stone-200">
+                    {voice.label} · {voiceCounts[voice.id]}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold text-ink">你勾选的启发</h2>
+            <span className="rounded-full bg-orangevoice/10 px-3 py-1 text-xs font-semibold text-clay">
+              仅你可见
+            </span>
+          </div>
+          <div className="mt-3 space-y-2">
+            {reflectionInspirations.map((item) => (
+              <article key={item.id} className="rounded-lg bg-[#fbf7ef] p-3">
+                <p className="text-xs font-semibold text-clay">{item.voice}</p>
+                <p className="mt-2 text-xs leading-6 text-stone-600">
+                  {item.text}
+                </p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
+          <h2 className="text-sm font-semibold text-ink">选择一个开头</h2>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {reflectionStarters.map((starter) => (
+              <button
+                key={starter}
+                type="button"
+                onClick={() => setReflectionStarter(starter)}
+                className={`rounded-full px-3 py-2 text-sm font-semibold ${
+                  reflectionStarter === starter
+                    ? "bg-ink text-white"
+                    : "bg-stone-100 text-stone-600"
+                }`}
+                aria-pressed={reflectionStarter === starter}
+              >
+                {starter}
+              </button>
+            ))}
+          </div>
+          <label className="mt-4 block text-sm font-semibold text-ink" htmlFor="reflection">
+            我的阶段性回应
+          </label>
+          <div className="mt-3 rounded-lg border border-stone-200 bg-[#fbf7ef] p-3 focus-within:border-clay">
+            <span className="text-sm font-semibold text-clay">{reflectionStarter}</span>
+            <textarea
+              id="reflection"
+              className="mt-2 min-h-32 w-full resize-none bg-transparent text-sm leading-7 text-ink outline-none"
+              value={reflectionText}
+              onChange={(event) => setReflectionText(event.target.value)}
+            />
+          </div>
+          <p className="mt-3 text-xs leading-5 text-stone-500">
+            复盘不是最佳答案总结，而是把你的变化反馈给所有声音。
+          </p>
+        </section>
+
+        <button
+          type="button"
+          onClick={onPublish}
+          className="flex w-full items-center justify-center gap-2 rounded-full bg-ink px-5 py-4 text-sm font-semibold text-white"
+        >
+          发布复盘
           <Send size={16} aria-hidden="true" />
         </button>
       </main>
@@ -597,7 +830,7 @@ function ReflectionDoneScreen({ onBackToFeed }) {
     <>
       <AppTopBar
         title="复盘已发出"
-        subtitle="23 个声音正在被通知"
+        subtitle={`${totalVoiceCount} 个声音正在被通知`}
         leftAction={
           <button
             type="button"
@@ -616,7 +849,7 @@ function ReflectionDoneScreen({ onBackToFeed }) {
           </div>
           <h2 className="mt-6 text-2xl font-semibold">你的回应已发出</h2>
           <p className="mt-3 text-sm leading-6 text-stone-300">
-            「你的声音被看见了」会送达所有回答者。
+            所有回答者都会看到这次复盘，被勾选者会收到「你的声音被看见了」。
           </p>
         </section>
 
@@ -625,12 +858,14 @@ function ReflectionDoneScreen({ onBackToFeed }) {
             const colors = colorClasses[voice.colorName];
             return (
               <article key={voice.id} className={`rounded-lg ${colors.soft} p-3`}>
-                <div className={`mx-auto h-2 w-10 rounded-full ${colors.bg}`} />
+                <div
+                  className={`mx-auto h-2 w-10 animate-pulse rounded-full ${colors.bg}`}
+                />
                 <p className={`mt-3 text-sm font-semibold ${colors.text}`}>
                   {voice.label}
                 </p>
                 <p className="mt-1 text-xs text-stone-500">
-                  {voice.id === "empathy" ? "12 人" : voice.id === "advice" ? "8 人" : "3 人"}
+                  {voiceCounts[voice.id]} 人
                 </p>
               </article>
             );
@@ -663,6 +898,67 @@ function ReflectionDoneScreen({ onBackToFeed }) {
         >
           回到求助流
         </button>
+      </main>
+    </>
+  );
+}
+
+function MessagesScreen() {
+  return (
+    <>
+      <AppTopBar
+        title="消息"
+        subtitle="这里没有热度榜，只有真实回声"
+        rightAction={
+          <button
+            type="button"
+            className="rounded-full bg-white p-3 text-stone-700 shadow-sm"
+            aria-label="消息设置"
+          >
+            <Shield size={18} aria-hidden="true" />
+          </button>
+        }
+      />
+      <main className="space-y-4 px-5 py-5">
+        <section className="rounded-lg bg-ink p-5 text-white">
+          <p className="text-sm font-semibold text-orangevoice">
+            Voice & Difference
+          </p>
+          <p className="mt-3 text-lg font-semibold leading-7">
+            反馈不告诉你谁赢了，只告诉你声音抵达了哪里。
+          </p>
+        </section>
+
+        <section className="space-y-3">
+          {mobileMessages.map((message) => {
+            const Icon = messageIconComponents[message.iconName];
+            return (
+              <article
+                key={message.id}
+                className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-orangevoice/10 text-clay">
+                    <Icon size={18} aria-hidden="true" />
+                  </div>
+                  <div>
+                    <div className="flex items-start justify-between gap-3">
+                      <h2 className="text-sm font-semibold text-ink">
+                        {message.title}
+                      </h2>
+                      <span className="shrink-0 text-xs font-medium text-stone-400">
+                        {message.time}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-stone-600">
+                      {message.body}
+                    </p>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </section>
       </main>
     </>
   );
@@ -711,15 +1007,29 @@ export function MobileAppPrototype({ onBackToShowcase }) {
           />
         ) : null}
         {activeScreen === "detail" ? (
-          <DetailScreen onBack={goToFeed} onOpenReflect={() => setActiveScreen("done")} />
+          <DetailScreen
+            onBack={goToFeed}
+            onOpenAnswer={() => setActiveScreen("answer")}
+            onOpenReflect={() => setActiveScreen("reflect")}
+          />
+        ) : null}
+        {activeScreen === "answer" ? (
+          <AnswerComposeScreen
+            onCancel={() => setActiveScreen("detail")}
+            onPublish={() => setActiveScreen("detail")}
+          />
         ) : null}
         {activeScreen === "create" ? (
           <CreateScreen onCancel={goToFeed} onPublish={() => setActiveScreen("detail")} />
         ) : null}
-        {activeScreen === "done" ? <ReflectionDoneScreen onBackToFeed={goToFeed} /> : null}
-        {activeScreen === "messages" ? (
-          <PlaceholderScreen title="消息" description="这里会收到「你的声音被看见了」。" />
+        {activeScreen === "reflect" ? (
+          <ReflectionEditScreen
+            onBack={() => setActiveScreen("detail")}
+            onPublish={() => setActiveScreen("done")}
+          />
         ) : null}
+        {activeScreen === "done" ? <ReflectionDoneScreen onBackToFeed={goToFeed} /> : null}
+        {activeScreen === "messages" ? <MessagesScreen /> : null}
         {activeScreen === "profile" ? (
           <PlaceholderScreen title="我的" description="匿名声音和实名声音都由你掌控。" />
         ) : null}
