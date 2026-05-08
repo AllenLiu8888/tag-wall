@@ -1,0 +1,845 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>标签墙求助功能 Prototype</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+      :root {
+        --bg-page: #f0ede5;
+        --bg-phone: #faf7f1;
+        --text-primary: #1c1917;
+        --text-secondary: #78716c;
+        --text-muted: #a8a29e;
+        --accent: #ea580c;
+        --accent-soft-bg: #ffedd5;
+        --accent-soft-text: #c2410c;
+        --card-bg: #ffffff;
+        --card-border: #f5f5f4;
+        --card-border-active: #fed7aa;
+        --tag-bg: #f5f1ea;
+        --tag-text: #78716c;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-width: 1840px;
+        color: var(--text-primary);
+        background: var(--bg-page);
+        font-family: "Noto Sans SC", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      }
+
+      button,
+      textarea {
+        font-family: inherit;
+      }
+
+      .phone-frame {
+        position: relative;
+        width: 393px;
+        height: 852px;
+        overflow: hidden;
+        background: var(--bg-phone);
+        border: 9px solid #1a1a1a;
+        border-radius: 50px;
+        box-shadow: 0 28px 80px rgba(28, 25, 23, 0.22);
+      }
+
+      .phone-notch {
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        z-index: 30;
+        width: 120px;
+        height: 32px;
+        transform: translateX(-50%);
+        background: #0f0f0f;
+        border-radius: 999px;
+      }
+
+      .home-indicator {
+        position: absolute;
+        bottom: 8px;
+        left: 50%;
+        z-index: 30;
+        width: 134px;
+        height: 5px;
+        transform: translateX(-50%);
+        background: #111111;
+        border-radius: 999px;
+      }
+
+      .status-bar {
+        position: relative;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 36px;
+        padding: 10px 24px 0;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0;
+      }
+
+      .phone-body {
+        position: relative;
+        z-index: 10;
+        height: calc(100% - 36px);
+        padding-bottom: 18px;
+      }
+
+      .nav-bar {
+        display: grid;
+        grid-template-columns: 76px 1fr 76px;
+        align-items: center;
+        height: 44px;
+        padding: 0 16px;
+      }
+
+      .card-shadow {
+        box-shadow: 0 8px 22px rgba(120, 113, 108, 0.1);
+      }
+
+      .soft-shadow {
+        box-shadow: 0 8px 18px rgba(234, 88, 12, 0.18);
+      }
+
+      .bucket-gongming {
+        background: linear-gradient(135deg, #f472b6, #ec4899);
+      }
+
+      .bucket-jianyi {
+        background: linear-gradient(135deg, #fb923c, #ea580c);
+      }
+
+      .bucket-fanguan {
+        background: linear-gradient(135deg, #a78bfa, #8b5cf6);
+      }
+
+      @keyframes pulse-glow {
+        0%,
+        100% {
+          opacity: 0.5;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.05);
+        }
+      }
+
+      @keyframes sparkle {
+        0%,
+        100% {
+          opacity: 0.3;
+          transform: scale(0.8) rotate(0deg);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.2) rotate(180deg);
+        }
+      }
+
+      .sparkle {
+        display: inline-block;
+        animation: sparkle 2.1s ease-in-out infinite;
+      }
+
+      .pulse-glow {
+        animation: pulse-glow 2.4s ease-in-out infinite;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .sparkle,
+        .pulse-glow {
+          animation: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+      const { useState } = React;
+
+      const helpQuestion =
+        "工作两年了，要不要回老家？北京压力大，但回去又怕没机会，最近每天都失眠...";
+
+      const voiceBuckets = [
+        {
+          key: "gongming",
+          emoji: "🤝",
+          label: "共鸣",
+          count: 12,
+          gradientClass: "bucket-gongming",
+          softClass: "bg-rose-50 text-rose-600",
+        },
+        {
+          key: "jianyi",
+          emoji: "💡",
+          label: "建议",
+          count: 8,
+          gradientClass: "bucket-jianyi",
+          softClass: "bg-orange-100 text-orange-700",
+        },
+        {
+          key: "fanguan",
+          emoji: "🪞",
+          label: "反观",
+          count: 3,
+          gradientClass: "bucket-fanguan",
+          softClass: "bg-violet-50 text-violet-600",
+        },
+      ];
+
+      const answersByBucket = {
+        gongming: [
+          {
+            id: "empathy-1",
+            author: "@匿名声音",
+            time: "12m",
+            body: "我也在迷茫这个问题，看到你写出来的瞬间松了一口气。不是只有你一个人卡在这里。",
+          },
+          {
+            id: "empathy-2",
+            author: "@匿名声音",
+            time: "42m",
+            body: "先允许自己累一下。北京和老家都不是答案本身，你的状态也值得被认真对待。",
+          },
+          {
+            id: "empathy-3",
+            author: "@小林",
+            time: "2h",
+            body: "这种拉扯很真实。你不是软弱，只是在认真选择一种之后要长期承受的生活。",
+          },
+        ],
+        jianyi: [
+          {
+            id: "advice-1",
+            author: "@匿名声音",
+            time: "1h",
+            body: "理性看，30 岁前在北京积累更重要。但如果北京已经掏空你，回去也是合理选择。",
+          },
+          {
+            id: "advice-2",
+            author: "@小王",
+            time: "3h",
+            body: "我去年从北京回了成都，最大的体会是——重要的不是城市，是你想过怎样的生活。",
+          },
+          {
+            id: "advice-3",
+            author: "@匿名声音",
+            time: "4h",
+            body: "建议你先列两份清单：留下的代价 vs 离开的代价。每条估个分。",
+          },
+        ],
+        fanguan: [
+          {
+            id: "reverse-1",
+            author: "@匿名声音",
+            time: "28m",
+            body: "你问的是'该不该回'，但你真正怕的是'如果回了发现不对怎么办'。",
+          },
+          {
+            id: "reverse-2",
+            author: "@旁观者",
+            time: "2h",
+            body: "也许先别把城市当成二选一。你需要验证的是工作方式、亲密关系和身体状态。",
+          },
+          {
+            id: "reverse-3",
+            author: "@匿名声音",
+            time: "5h",
+            body: "如果留下只是为了证明自己没有输，那这个理由可能不值得继续消耗你。",
+          },
+        ],
+      };
+
+      const selectedTags = ["#职场", "#选择"];
+      const allTags = ["#职场", "#选择", "#情绪", "#关系", "#生活", "#成长", "+ 自定义"];
+
+      const visibilityOptions = [
+        { key: "friends", label: "🟢 仅好友圈" },
+        { key: "square", label: "🟡 仅标签广场" },
+        { key: "both", label: "🔵 两者都发" },
+      ];
+
+      const identityOptions = [
+        { key: "anonymous", label: "🎭 匿名声音", badge: "默认" },
+        { key: "real", label: "👤 实名声音" },
+      ];
+
+      const reflectionStarters = [
+        { key: "think", label: "💭 我认为..." },
+        { key: "plan", label: "🎯 我打算..." },
+        { key: "learn", label: "📚 我学到..." },
+      ];
+
+      const pageLawChips = {
+        detail: ["Jakob's Law", "Common Region", "Hick's Law"],
+        create: ["Tesler's Law", "Hick's Law", "Postel's Law"],
+        reflection: ["Goal-Gradient", "Hick's Law", "Peak-End Rule"],
+        complete: ["Peak-End Rule", "Von Restorff", "Doherty"],
+      };
+
+      const designDecisions = [
+        { title: "三桶等宽", law: "Common Region", body: "每种声音拥有同等展示位，不按数量伸缩。" },
+        { title: "取消公开点赞", law: "Mental Model", body: "用求助者私有星标替代大众排序。" },
+        { title: "默认匿名", law: "Tesler's Law", body: "把隐私复杂度折叠成安全默认值。" },
+        { title: "复盘三选一", law: "Hick's Law", body: "降低表达启动成本，覆盖不同求助气质。" },
+        { title: "完成态传递", law: "Peak-End Rule", body: "让求助闭环停在'声音被看见'的情感峰值。" },
+      ];
+
+      const inspiredPreview = [
+        {
+          bucketKey: "jianyi",
+          label: "💡 建议 · @小王",
+          body: "重要的不是城市，是你想过怎样的生活。",
+        },
+        {
+          bucketKey: "gongming",
+          label: "🤝 共鸣 · @匿名声音",
+          body: "我也在迷茫这个问题，看到你写出来的瞬间松了一口气。",
+        },
+        {
+          bucketKey: "fanguan",
+          label: "🪞 反观 · @匿名声音",
+          body: "你问的是'该不该回'，但你真正怕的是'如果回了发现不对怎么办'。",
+        },
+      ];
+
+      function getBucket(bucketKey) {
+        return voiceBuckets.find((bucket) => bucket.key === bucketKey);
+      }
+
+      function cx(...classes) {
+        return classes.filter(Boolean).join(" ");
+      }
+
+      function StatusIcons() {
+        return (
+          <div className="flex items-center gap-1.5 text-stone-900">
+            <span className="flex items-end gap-0.5" aria-label="signal">
+              <span className="block h-1.5 w-0.5 rounded-full bg-stone-900"></span>
+              <span className="block h-2 w-0.5 rounded-full bg-stone-900"></span>
+              <span className="block h-2.5 w-0.5 rounded-full bg-stone-900"></span>
+              <span className="block h-3 w-0.5 rounded-full bg-stone-900"></span>
+            </span>
+            <span className="text-[10px] leading-none">WiFi</span>
+            <span className="relative block h-3 w-6 rounded-[4px] border border-stone-900">
+              <span className="absolute -right-1 top-1 block h-1.5 w-0.5 rounded-r bg-stone-900"></span>
+              <span className="absolute left-0.5 top-0.5 block h-2 w-4 rounded-sm bg-stone-900"></span>
+            </span>
+          </div>
+        );
+      }
+
+      function PhoneFrame({ title, laws, children, screenClassName = "" }) {
+        return (
+          <div className="flex w-[393px] flex-none flex-col items-center">
+            <div className="phone-frame">
+              <div className="phone-notch" aria-hidden="true"></div>
+              <div className="status-bar">
+                <span>9:41</span>
+                <StatusIcons />
+              </div>
+              <div className={cx("phone-body", screenClassName)}>{children}</div>
+              <div className="home-indicator" aria-hidden="true"></div>
+            </div>
+            <div className="mt-4 flex min-h-[30px] flex-wrap justify-center gap-1.5">
+              {laws.map((law) => (
+                <LawChip key={`${title}-${law}`}>{law}</LawChip>
+              ))}
+            </div>
+          </div>
+        );
+      }
+
+      function NavBar({ left, title, right, rightClassName = "" }) {
+        return (
+          <header className="nav-bar">
+            <div className="text-left text-[14px] font-medium text-stone-600">{left}</div>
+            <h2 className="text-center text-[15px] font-bold text-stone-900">{title}</h2>
+            <div className={cx("text-right text-[14px] font-semibold", rightClassName)}>{right}</div>
+          </header>
+        );
+      }
+
+      function LawChip({ children }) {
+        return (
+          <span className="rounded-full bg-blue-100 px-2.5 py-1 text-[10px] font-semibold text-blue-700">
+            {children}
+          </span>
+        );
+      }
+
+      function TagChip({ children, selected = false }) {
+        return (
+          <span
+            className={cx(
+              "inline-flex h-7 items-center rounded-full px-3 text-[12px] font-medium",
+              selected ? "bg-orange-600 text-white" : "bg-[#F5F1EA] text-stone-500",
+            )}
+          >
+            {children}
+          </span>
+        );
+      }
+
+      function SectionTitle({ title, subtitle }) {
+        return (
+          <div className="mb-2 flex items-end justify-between">
+            <h3 className="text-[12px] font-bold text-stone-700">{title}</h3>
+            {subtitle ? <span className="text-[11px] text-stone-400">{subtitle}</span> : null}
+          </div>
+        );
+      }
+
+      function SegmentedControl({
+        options,
+        selectedKey,
+        onChange,
+        activeClassName = "bg-orange-600 text-white soft-shadow",
+        inactiveClassName = "text-stone-500",
+        className = "",
+      }) {
+        return (
+          <div className={cx("grid gap-1 rounded-2xl bg-stone-100 p-1", className)} style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}>
+            {options.map((option) => {
+              const selected = option.key === selectedKey;
+              return (
+                <button
+                  key={option.key}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => onChange(option.key)}
+                  className={cx(
+                    "relative min-h-[48px] rounded-xl px-1.5 text-center text-[12px] font-semibold leading-tight transition",
+                    selected ? activeClassName : inactiveClassName,
+                  )}
+                >
+                  <span className="block">{option.label}</span>
+                  {option.count !== undefined ? (
+                    <span className={cx("mt-0.5 block text-[11px]", selected ? "text-white/85" : "text-stone-400")}>{option.count}</span>
+                  ) : null}
+                  {option.badge ? (
+                    <span className="absolute right-1.5 top-1 rounded-full bg-orange-100 px-1.5 py-0.5 text-[9px] font-bold text-orange-600">
+                      {option.badge}
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+        );
+      }
+
+      function AnswerCard({ answer, bucket, inspired, onToggle }) {
+        return (
+          <article
+            className={cx(
+              "card-shadow rounded-2xl bg-white p-3.5",
+              inspired ? "border-2 border-orange-200" : "border border-stone-100",
+            )}
+          >
+            <div className="mb-2 flex items-center gap-2">
+              <span className={cx("rounded-full px-2 py-1 text-[11px] font-semibold", bucket.softClass)}>
+                {bucket.emoji} {bucket.label}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-stone-500">
+                {answer.author} · {answer.time}
+              </span>
+              <button
+                type="button"
+                aria-label={inspired ? "取消对我有启发" : "标记对我有启发"}
+                aria-pressed={inspired}
+                onClick={() => onToggle(answer.id)}
+                className={cx(
+                  "flex h-8 w-8 items-center justify-center rounded-full text-[18px] transition",
+                  inspired ? "bg-orange-50 text-orange-500" : "bg-stone-50 text-stone-300",
+                )}
+              >
+                {inspired ? "★" : "☆"}
+              </button>
+            </div>
+            <p className="text-[14px] leading-relaxed text-stone-700">{answer.body}</p>
+            {inspired ? (
+              <p className="mt-2 rounded-xl bg-orange-50 px-2.5 py-2 text-[11px] font-semibold text-orange-700">
+                ★ 你勾选了"对我有启发"
+              </p>
+            ) : null}
+          </article>
+        );
+      }
+
+      function HelpDetailPage() {
+        const [selectedBucket, setSelectedBucket] = useState("jianyi");
+        const [inspiredAnswerIds, setInspiredAnswerIds] = useState(["advice-2"]);
+        const bucket = getBucket(selectedBucket);
+        const answers = answersByBucket[selectedBucket];
+
+        function toggleInspired(answerId) {
+          setInspiredAnswerIds((currentIds) =>
+            currentIds.includes(answerId)
+              ? currentIds.filter((id) => id !== answerId)
+              : [...currentIds, answerId],
+          );
+        }
+
+        const spectrumOptions = voiceBuckets.map((bucketItem) => ({
+          key: bucketItem.key,
+          label: `${bucketItem.emoji} ${bucketItem.label}`,
+          count: bucketItem.count,
+        }));
+
+        return (
+          <PhoneFrame title="detail" laws={pageLawChips.detail}>
+            <NavBar left={<span className="text-[28px] leading-none">‹</span>} title="求助" right={<span className="text-[20px] leading-none">↑</span>} />
+
+            <main className="relative h-[754px] px-4 pb-16">
+              <section className="flex items-center gap-3 px-1">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-stone-100 text-[20px]">🎭</div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[14px] font-semibold text-stone-800">@匿名声音</p>
+                  <p className="text-[11px] text-stone-500">2 小时前</p>
+                </div>
+                <div className="flex gap-1">
+                  {selectedTags.map((tag) => (
+                    <span key={tag} className="rounded-full bg-[#F5F1EA] px-2 py-1 text-[11px] font-medium text-stone-500">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </section>
+
+              <p className="mt-3 px-1 text-[17px] leading-[1.7] text-stone-900">{helpQuestion}</p>
+
+              <section className="relative mt-3 rounded-2xl bg-[#1F2937] px-3.5 py-3 text-white shadow-lg">
+                <button type="button" aria-label="关闭引导" className="absolute right-3 top-2 text-[13px] text-white/70">
+                  ✕
+                </button>
+                <p className="text-[13px] font-bold">👋 这里不按赞数排序</p>
+                <p className="mt-1 pr-4 text-[11px] leading-relaxed text-white/80">
+                  每种立场都有自己的位置——横滑切换看不同声音
+                </p>
+                <span className="absolute bottom-[-8px] left-1/2 h-4 w-4 -translate-x-1/2 rotate-45 bg-[#1F2937]"></span>
+              </section>
+
+              <section className="mt-5">
+                <div className="mb-2 flex items-center justify-between">
+                  <h3 className="text-[14px] font-bold text-stone-900">🌈 声音光谱</h3>
+                  <p className="text-[10px] text-stone-400">按时间倒序 · 不按赞数</p>
+                </div>
+                <SegmentedControl
+                  options={spectrumOptions}
+                  selectedKey={selectedBucket}
+                  onChange={setSelectedBucket}
+                  activeClassName="bg-orange-600 text-white soft-shadow"
+                />
+                <p className="mt-1.5 text-center text-[10px] text-stone-400">← 横滑切换桶 →</p>
+              </section>
+
+              <section className="mt-2.5 space-y-2.5">
+                {answers.map((answer) => (
+                  <AnswerCard
+                    key={answer.id}
+                    answer={answer}
+                    bucket={bucket}
+                    inspired={inspiredAnswerIds.includes(answer.id)}
+                    onToggle={toggleInspired}
+                  />
+                ))}
+              </section>
+
+              <button
+                type="button"
+                className="absolute bottom-12 right-4 rounded-full bg-orange-600 px-5 py-3.5 text-[14px] font-bold text-white shadow-xl shadow-orange-600/25"
+              >
+                ✏️ 写回答
+              </button>
+            </main>
+          </PhoneFrame>
+        );
+      }
+
+      function CreateHelpPage() {
+        const [selectedVisibility, setSelectedVisibility] = useState("square");
+        const [selectedIdentity, setSelectedIdentity] = useState("anonymous");
+
+        return (
+          <PhoneFrame title="create" laws={pageLawChips.create}>
+            <NavBar left="取消" title="发起求助" right="发布" rightClassName="text-stone-300" />
+
+            <main className="flex h-[754px] flex-col px-4">
+              <section className="rounded-2xl border border-stone-100 bg-white p-4 card-shadow">
+                <textarea
+                  rows="4"
+                  placeholder="你想问什么？真实地写出来，差异本身就有价值"
+                  className="h-[120px] w-full resize-none border-none bg-transparent text-[15px] leading-relaxed text-stone-800 placeholder:text-stone-400 focus:outline-none"
+                ></textarea>
+                <p className="text-right text-[11px] text-stone-400">0 / 500</p>
+              </section>
+
+              <section className="mt-4">
+                <SectionTitle title="选择标签（1-3 个） 2/3" />
+                <div className="flex flex-wrap gap-2">
+                  {allTags.map((tag) => (
+                    <TagChip key={tag} selected={selectedTags.includes(tag)}>
+                      {tag}
+                    </TagChip>
+                  ))}
+                </div>
+              </section>
+
+              <section className="mt-5">
+                <SectionTitle title="谁能看到" />
+                <SegmentedControl
+                  options={visibilityOptions}
+                  selectedKey={selectedVisibility}
+                  onChange={setSelectedVisibility}
+                  activeClassName="bg-white text-stone-900 shadow-md shadow-stone-200/70"
+                  className="rounded-2xl"
+                />
+                <p className="mt-2 text-[11px] leading-relaxed text-stone-500">
+                  基于 #职场 #选择 标签匹配的陌生人能看到
+                </p>
+              </section>
+
+              <section className="mt-5">
+                <SectionTitle title="以什么身份" />
+                <SegmentedControl
+                  options={identityOptions}
+                  selectedKey={selectedIdentity}
+                  onChange={setSelectedIdentity}
+                  activeClassName="bg-white text-stone-900 shadow-md shadow-stone-200/70"
+                  className="rounded-2xl"
+                />
+                <p className="mt-2 text-[11px] italic leading-relaxed text-stone-500">
+                  匿名是默认。让不敢说的声音也能被听见。
+                </p>
+              </section>
+
+              <button
+                type="button"
+                disabled
+                className="absolute bottom-8 left-4 right-4 h-[54px] rounded-full bg-stone-200 text-[15px] font-bold text-stone-400"
+              >
+                发布求助
+              </button>
+            </main>
+          </PhoneFrame>
+        );
+      }
+
+      function InspiredMiniCard({ item }) {
+        const bucket = getBucket(item.bucketKey);
+        return (
+          <article className="rounded-xl border border-stone-100 bg-white p-2.5">
+            <p className={cx("mb-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold", bucket.softClass)}>
+              {item.label}
+            </p>
+            <p className="text-[12px] leading-relaxed text-stone-700">"{item.body}"</p>
+          </article>
+        );
+      }
+
+      function ReflectionPage() {
+        const [reflectionStarter, setReflectionStarter] = useState("plan");
+
+        return (
+          <PhoneFrame title="reflection" laws={pageLawChips.reflection}>
+            <NavBar left={<span className="text-[28px] leading-none">‹</span>} title="写下你的感受" right="发布" rightClassName="text-orange-600" />
+
+            <main className="relative h-[754px] px-4 pb-24">
+              <section className="rounded-xl border border-orange-100 bg-gradient-to-r from-orange-50 to-amber-50 p-3">
+                <p className="text-[11px] leading-relaxed text-stone-600">
+                  <span className="font-bold text-orange-600">23 条回答</span>
+                  <span> · 你勾选了 </span>
+                  <span className="font-bold text-orange-600">★ 3 条</span>
+                  <span> · </span>
+                  <span className="font-bold text-stone-900">写下你的感受让 23 个声音被看见</span>
+                </p>
+              </section>
+
+              <section className="mt-3 rounded-xl border border-stone-100 bg-stone-50 p-3">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-stone-500">你的求助</p>
+                <p className="mt-1 text-[14px] leading-relaxed text-stone-700">{helpQuestion}</p>
+                <p className="mt-1 text-[11px] text-stone-400">12 小时前</p>
+              </section>
+
+              <section className="mt-3">
+                <SectionTitle title={'★ 你勾选的"对我有启发" · 3 条'} />
+                <div className="space-y-1.5">
+                  {inspiredPreview.map((item) => (
+                    <InspiredMiniCard key={item.label} item={item} />
+                  ))}
+                </div>
+              </section>
+
+              <section className="mt-3">
+                <div className="mb-2">
+                  <h3 className="text-[12px] font-bold text-stone-700">留下你的想法</h3>
+                  <p className="text-[11px] text-stone-400">不强求一定有答案</p>
+                </div>
+                <SegmentedControl
+                  options={reflectionStarters}
+                  selectedKey={reflectionStarter}
+                  onChange={setReflectionStarter}
+                  activeClassName="bg-orange-600 text-white soft-shadow"
+                  className="rounded-2xl"
+                />
+                <div className="mt-2 min-h-[84px] rounded-xl border border-stone-200 bg-white p-3 text-[14px] leading-relaxed text-stone-700">
+                  <strong className="font-bold text-orange-600">我打算</strong>
+                  <span> 先在北京再撑一年，但同时回老家面试 2 家公司。给自己一个真实的对比，而不是想象。</span>
+                </div>
+                <p className="mt-2 text-[11px] italic leading-relaxed text-stone-500">
+                  💌 你的复盘会让所有回答者收到通知：
+                  <strong className="font-bold text-stone-700">"你的声音被看见了"</strong>
+                </p>
+              </section>
+
+              <div className="mt-auto pb-7">
+                <button type="button" className="h-[50px] w-full rounded-full bg-orange-600 text-[15px] font-bold text-white shadow-lg shadow-orange-600/20">
+                  发布复盘
+                </button>
+                <button type="button" className="mt-2 w-full text-center text-[13px] font-medium text-stone-400">
+                  暂不写下
+                </button>
+              </div>
+            </main>
+          </PhoneFrame>
+        );
+      }
+
+      function CompletionPage() {
+        return (
+          <PhoneFrame title="complete" laws={pageLawChips.complete} screenClassName="bg-gradient-to-b from-[#FFF7ED] to-[#FAF7F1]">
+            <main className="relative flex h-[798px] flex-col items-center px-5 text-center">
+              <section className="mt-32 flex h-12 items-center justify-center gap-7" aria-label="闪光装饰">
+                <span className="sparkle text-[24px]" style={{ animationDelay: "0s" }}>✨</span>
+                <span className="sparkle text-[30px]" style={{ animationDelay: "0.25s" }}>✨</span>
+                <span className="sparkle text-[24px]" style={{ animationDelay: "0.5s" }}>✨</span>
+              </section>
+
+              <section className="mt-8 flex h-20 w-20 items-center justify-center rounded-full bg-orange-600 text-[30px] shadow-[0_20px_50px_-10px_rgba(234,88,12,0.4)]">
+                💌
+              </section>
+
+              <section className="mt-6">
+                <h2 className="text-[24px] font-bold leading-[1.3] text-stone-900">你的回应已发出</h2>
+                <p className="mt-3 text-[16px] font-semibold text-stone-700">
+                  <span className="text-orange-600">23 个声音</span>
+                  <span> 正在被通知 ——</span>
+                </p>
+                <p className="mt-1 text-[15px] italic text-stone-700">"你的声音被看见了"</p>
+              </section>
+
+              <section className="mt-10 w-full">
+                <p className="mb-3 text-center text-[10px] font-bold uppercase tracking-wider text-stone-400">
+                  声音正在传递到
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  {voiceBuckets.map((bucket, index) => (
+                    <article
+                      key={bucket.key}
+                      className={cx("pulse-glow rounded-2xl px-2 py-3.5 text-white", bucket.gradientClass)}
+                      style={{ animationDelay: `${index * 0.4}s` }}
+                    >
+                      <p className="text-[24px] leading-none">{bucket.emoji}</p>
+                      <p className="mt-2 text-[12px] font-bold">{bucket.label}</p>
+                      <p className="mt-1 text-[10px] font-medium text-white/80">{bucket.count} 人</p>
+                    </article>
+                  ))}
+                </div>
+              </section>
+
+              <blockquote className="mt-auto mb-32 whitespace-pre-line text-[11px] italic leading-relaxed text-stone-400">
+                {"你不是从答案里选了一个赢家\n你是把自己借给了所有声音"}
+              </blockquote>
+
+              <div className="absolute bottom-9 left-5 right-5">
+                <button type="button" className="h-[50px] w-full rounded-full bg-orange-600 text-[15px] font-bold text-white shadow-lg shadow-orange-600/20">
+                  看看你的求助
+                </button>
+                <button type="button" className="mt-3 w-full text-[13px] font-medium text-stone-500">
+                  返回首页
+                </button>
+              </div>
+            </main>
+          </PhoneFrame>
+        );
+      }
+
+      function DesignDecisionCard() {
+        return (
+          <section className="mx-auto mt-10 w-[1700px] rounded-3xl border border-orange-100 bg-white/75 p-8 shadow-xl shadow-stone-300/20">
+            <div className="mb-6 flex items-end justify-between">
+              <div>
+                <h2 className="text-[24px] font-bold text-stone-900">关键设计点</h2>
+                <p className="mt-2 text-[14px] text-stone-500">Voice & Difference 决策 + HCI 理论精修</p>
+              </div>
+              <LawChip>理论不是装饰，是反主流设计的安全绳。</LawChip>
+            </div>
+            <div className="grid grid-cols-5 gap-4">
+              {designDecisions.map((decision) => (
+                <article key={decision.title} className="rounded-2xl border border-stone-100 bg-[#FAF7F1] p-4">
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <h3 className="text-[15px] font-bold text-stone-900">{decision.title}</h3>
+                    <LawChip>{decision.law}</LawChip>
+                  </div>
+                  <p className="text-[13px] leading-relaxed text-stone-600">{decision.body}</p>
+                </article>
+              ))}
+            </div>
+            <p className="mt-6 text-center text-[13px] italic text-stone-500">
+              "理论不是装饰，是反主流设计的安全绳。"
+            </p>
+          </section>
+        );
+      }
+
+      function App() {
+        return (
+          <div className="px-10 py-10">
+            <header className="mx-auto mb-8 flex w-[1700px] items-end justify-between">
+              <div>
+                <p className="text-[13px] font-bold uppercase tracking-[0.18em] text-orange-700">TagWall Prototype</p>
+                <h1 className="mt-2 text-[34px] font-extrabold text-stone-900">标签墙 · 求助功能</h1>
+                <p className="mt-2 text-[15px] text-stone-600">Voice & Difference：让不同的声音都被看见，而不是被点赞数淘汰。</p>
+              </div>
+              <div className="rounded-2xl bg-orange-100 px-4 py-3 text-right">
+                <p className="text-[12px] font-bold text-orange-700">Frontend-only Prototype</p>
+                <p className="mt-1 text-[12px] text-orange-900">React 18 + Tailwind CDN · 单文件 HTML</p>
+              </div>
+            </header>
+
+            <div className="mx-auto flex w-[1700px] items-start justify-between gap-8">
+              <HelpDetailPage />
+              <CreateHelpPage />
+              <ReflectionPage />
+              <CompletionPage />
+            </div>
+
+            <DesignDecisionCard />
+          </div>
+        );
+      }
+
+      const root = ReactDOM.createRoot(document.getElementById("root"));
+      root.render(<App />);
+    </script>
+  </body>
+</html>
