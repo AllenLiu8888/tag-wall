@@ -28,6 +28,8 @@ import {
 import { MobileAppPrototype } from "./MobileAppPrototype";
 import "./styles.css";
 
+const publicAssetPath = (filename) => `${import.meta.env.BASE_URL}${filename}`;
+
 function SectionIntro({ eyebrow, title, children, align = "center", invert = false }) {
   return (
     <div
@@ -142,7 +144,7 @@ function HeroPreview() {
       <div className="absolute -right-8 bottom-6 hidden h-44 w-44 rounded-full bg-violetvoice/20 blur-3xl sm:block" />
       <div className="relative overflow-hidden rounded-lg border border-white/70 bg-white shadow-soft">
         <img
-          src="/voice-wall-hero.png"
+          src={publicAssetPath("voice-wall-hero.png")}
           alt="由多张纸质标签组成的温暖声音墙视觉"
           className="h-56 w-full object-cover sm:h-64"
         />
